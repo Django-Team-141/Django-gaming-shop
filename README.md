@@ -1,48 +1,25 @@
-# گیم‌گیر — فروشگاه لوازم جانبی گیمینگ
+# 🎮 Gaming Gear E-Commerce Platform
 
-پروژه کامل یک فروشگاه اینترنتی فارسی (RTL) با تمرکز بر امنیت:
+A production-ready full-stack e-commerce web application designed for gaming peripherals, featuring atomic concurrency control, stock reservation, dynamic specifications, and rate-limiting security.
 
-- `backend/` — Django 5 + Django REST Framework (کاربر سفارشی، JWT، کاتالوگ، سبد و سفارش، نظرات)
-- `frontend/` — قالب فروشگاه با React + TanStack Start + Tailwind که داده‌ها را از API می‌خواند
+## ✨ Key Technical Highlights
 
-## ۱. اجرای بک‌اند
+- **Concurrency-Safe Checkout:** Uses database row-level locking (`select_for_update`) to prevent race conditions during high-demand inventory checkout.
+- **Coupon Lifecycle & Rate Limits:** Prevents duplicate coupon abuse with `CouponUsage` ledger and concurrency-safe quota validation.
+- **Brute-Force & Security Protection:** Protected via `django-axes` against credential stuffing, enforced CORS whitelisting, and strict security headers.
+- **Debounced Live Search & Query Invalidation:** Instant client-side state synchronization with TanStack Query.
+- **Automated Inventory Restocking:** Background command to release reserved stock from unfulfilled/expired pending orders.
+- **Mock Payment Gateway:** Full transaction life-cycle handling (`PENDING` ➔ `PAID` / `FAILED`).
 
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate      # ویندوز: .venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env           # SECRET_KEY را عوض کن
-python manage.py migrate
-python manage.py seed_demo     # داده نمونه
-python manage.py createsuperuser
-python manage.py runserver
-```
+## 🛠 Tech Stack
 
-- پنل مدیریت: http://127.0.0.1:8000/admin/
-- مستندات API: http://127.0.0.1:8000/api/docs/
-- تست‌ها: `pytest`
+- **Backend:** Python 3.12, Django 5, Django REST Framework, SimpleJWT, PostgreSQL / SQLite.
+- **Frontend:** React 19, TypeScript, TanStack Start, Tailwind CSS.
+- **Containerization:** Docker & Docker Compose.
 
-جزئیات بیشتر در `backend/README.md`.
-
-## ۲. اجرای فرانت‌اند
+## 🚀 Quick Start with Docker
 
 ```bash
-cd frontend
-cp .env.example .env           # آدرس API
-npm install                    # یا bun install
-npm run dev                    # http://localhost:8080
-```
+docker-compose up --build
 
-آدرس فرانت‌اند باید در `CORS_ALLOWED_ORIGINS` فایل `backend/.env` باشد، وگرنه مرورگر داده‌ها را نمی‌گیرد.
-
-## نکته‌های امنیتی پیاده‌شده
-
-- رمزها و کلیدها فقط در `.env`
-- JWT با عمر کوتاه و چرخش refresh
-- محدودیت نرخ درخواست و قفل حساب پس از ۵ ورود ناموفق (django-axes)
-- CORS و CSRF محدود به دامنه‌های مشخص
-- HSTS، ریدایرکت HTTPS و کوکی امن در حالت production
-- مجوز دقیق روی هر endpoint؛ سبد، آدرس و سفارش فقط برای مالک
-- کاهش موجودی انبار در تراکنش اتمی با `select_for_update`
-- ثبت نظر فقط برای خریدار واقعی و پس از تأیید ادمین
+The API will be available at http://localhost:8000/api/ and the interactive OpenAPI documentation at http://localhost:8000/api/docs/

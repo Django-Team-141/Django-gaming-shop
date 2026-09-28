@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -32,6 +32,7 @@ export const Route = createFileRoute("/products/")({
 });
 
 function ProductCard({ product }: { product: ApiProduct }) {
+  const queryClient = useQueryClient();
   const [adding, setAdding] = useState(false);
 
   async function handleAdd() {
@@ -44,6 +45,8 @@ function ProductCard({ product }: { product: ApiProduct }) {
 
     try {
       await addToCart(product.id, 1);
+      await queryClient.invalidateQueries({ queryKey: ["cart"] });
+      await queryClient.invalidateQueries({ queryKey: ["cart-count"] });
       toast.success("به سبد خرید اضافه شد.");
     } catch (err) {
       toast.error(
@@ -142,6 +145,21 @@ function ProductsPage() {
   const navigate = Route.useNavigate();
   const [term, setTerm] = useState(search.search ?? "");
 
+  // جستجوی زنده خودکار ۳۵۰ میلی‌ثانیه پس از اتمام تایپ کاربر
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (term !== (search.search ?? "")) {
+        void navigate({
+          search: {
+            ...search,
+            search: term || undefined,
+          },
+        });
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [term, navigate, search]);
+
   const productFilters = {
     ...(search.search ? { search: search.search } : {}),
     ...(search.category ? { category: search.category } : {}),
@@ -174,26 +192,14 @@ function ProductsPage() {
         <h1 className="text-2xl font-black">محصولات</h1>
 
         <div className="mt-6 flex flex-wrap gap-3">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-
-              void navigate({
-                search: {
-                  ...search,
-                  search: term || undefined,
-                },
-              });
-            }}
-            className="flex min-w-55 flex-1 items-center rounded-full border border-input bg-muted/40 px-3 py-2"
-          >
+          <div className="flex min-w-55 flex-1 items-center rounded-full border border-input bg-muted/40 px-3 py-2">
             <input
               value={term}
               onChange={(e) => setTerm(e.target.value)}
-              placeholder="جست‌وجو در محصولات..."
+              placeholder="جست‌وجوی لحظه‌ای در محصولات..."
               className="w-full bg-transparent text-sm outline-none"
             />
-          </form>
+          </div>
 
           <select
             value={search.category ?? ""}
