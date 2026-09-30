@@ -19,7 +19,9 @@ function NotFoundComponent() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">۴۰۴</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">صفحه پیدا نشد</h2>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">
+          صفحه پیدا نشد
+        </h2>
         <p className="mt-2 text-sm text-muted-foreground">
           نشانی وارد شده وجود ندارد یا جابه‌جا شده است.
         </p>
@@ -36,7 +38,13 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({
+  error,
+  reset,
+}: {
+  error: Error;
+  reset: () => void;
+}) {
   console.error(error);
   const router = useRouter();
 
@@ -71,27 +79,46 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
-export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+export const Route = createRootRouteWithContext<{
+  queryClient: QueryClient;
+}>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      {
+        name: "viewport",
+        content: "width=device-width, initial-scale=1",
+      },
       { title: "گیم‌گیر | فروشگاه لوازم جانبی گیمینگ" },
       {
         name: "description",
-        content: "خرید کیبورد مکانیکی، ماوس گیمینگ، هدست و پد ماوس با ارسال سریع و ضمانت اصالت.",
+        content:
+          "خرید کیبورد مکانیکی، ماوس گیمینگ، هدست و پد ماوس با ارسال سریع و ضمانت اصالت.",
       },
-      { property: "og:title", content: "گیم‌گیر | فروشگاه لوازم جانبی گیمینگ" },
+      {
+        property: "og:title",
+        content: "گیم‌گیر | فروشگاه لوازم جانبی گیمینگ",
+      },
       {
         property: "og:description",
-        content: "کیبورد، ماوس، هدست و پد ماوس گیمینگ با قیمت شفاف و ضمانت اصالت کالا.",
+        content:
+          "کیبورد، ماوس، هدست و پد ماوس گیمینگ با قیمت شفاف و ضمانت اصالت کالا.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      {
+        rel: "icon",
+        href: "/favicon.svg",
+        type: "image/svg+xml",
+      },
+      {
+        rel: "icon",
+        href: "/favicon.ico",
+        type: "image/x-icon",
+      },
     ],
   }),
   shellComponent: RootShell,

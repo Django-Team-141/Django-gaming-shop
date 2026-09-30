@@ -22,23 +22,69 @@ export const Route = createFileRoute("/cart")({
   component: CartPage,
 });
 
+function CartSteps() {
+  return (
+    <ol className="mb-8 flex items-center gap-2">
+      {[
+        { n: 1, label: "سبد", active: true },
+        { n: 2, label: "آدرس", active: false },
+        { n: 3, label: "پرداخت", active: false },
+      ].map((step, index, arr) => (
+        <li key={step.n} className="flex flex-1 items-center gap-2">
+          <div className="flex flex-col items-center gap-1.5">
+            <span
+              className={
+                step.active
+                  ? "grid h-9 w-9 place-items-center rounded-full text-sm font-black text-primary-foreground"
+                  : "grid h-9 w-9 place-items-center rounded-full border border-border text-sm font-bold text-muted-foreground"
+              }
+              style={
+                step.active
+                  ? {
+                      backgroundImage: "var(--gradient-neon)",
+                      boxShadow: "var(--shadow-neon)",
+                    }
+                  : undefined
+              }
+            >
+              {step.n}
+            </span>
+            <span
+              className={
+                step.active
+                  ? "text-[11px] font-bold text-primary"
+                  : "text-[11px] text-muted-foreground"
+              }
+            >
+              {step.label}
+            </span>
+          </div>
+          {index < arr.length - 1 && (
+            <div className="mb-5 h-0.5 flex-1 rounded-full bg-border" />
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 function CartPage() {
   return (
     <div dir="rtl" className="min-h-screen bg-background text-foreground">
       <SiteHeader />
 
       <main className="mx-auto min-h-[70vh] max-w-6xl px-4 py-8 md:py-12">
-        <div className="mb-8">
+        <div className="mb-6">
           <p className="text-sm font-medium text-primary">خرید شما</p>
-
           <h1 className="mt-2 text-3xl font-black tracking-tight md:text-4xl">
             سبد خرید
           </h1>
-
           <p className="mt-2 text-sm text-muted-foreground">
             محصولات انتخاب‌شده را بررسی کن و برای ثبت سفارش ادامه بده.
           </p>
         </div>
+
+        <CartSteps />
 
         <RequireAuth>
           <CartBody />
@@ -52,8 +98,11 @@ function CartPage() {
 
 function CartRow({ item }: { item: CartItem }) {
   const queryClient = useQueryClient();
-
   const image = mediaUrl(item.product.main_image);
+
+  const hasDiscount =
+    item.product.discount_price !== null &&
+    item.product.discount_price < item.product.price;
 
   async function changeQuantity(quantity: number) {
     if (quantity < 1) {
@@ -62,14 +111,8 @@ function CartRow({ item }: { item: CartItem }) {
 
     try {
       await updateCartItem(item.id, quantity);
-
-      await queryClient.invalidateQueries({
-        queryKey: ["cart"],
-      });
-
-      await queryClient.invalidateQueries({
-        queryKey: ["cart-count"],
-      });
+      await queryClient.invalidateQueries({ queryKey: ["cart"] });
+      await queryClient.invalidateQueries({ queryKey: ["cart-count"] });
     } catch (err) {
       toast.error(
         err instanceof ApiError
@@ -82,15 +125,8 @@ function CartRow({ item }: { item: CartItem }) {
   async function handleRemove() {
     try {
       await removeCartItem(item.id);
-
-      await queryClient.invalidateQueries({
-        queryKey: ["cart"],
-      });
-
-      await queryClient.invalidateQueries({
-        queryKey: ["cart-count"],
-      });
-
+      await queryClient.invalidateQueries({ queryKey: ["cart"] });
+      await queryClient.invalidateQueries({ queryKey: ["cart-count"] });
       toast.success("محصول از سبد خرید حذف شد.");
     } catch (err) {
       toast.error(
@@ -104,11 +140,10 @@ function CartRow({ item }: { item: CartItem }) {
   return (
     <article className="glass-panel group rounded-2xl p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/30">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        {/* Product image */}
         <Link
           to="/products/$slug"
           params={{ slug: item.product.slug }}
-          className="shrink-0"
+          className="relative shrink-0"
         >
           <div className="h-24 w-full overflow-hidden rounded-xl bg-muted/40 sm:h-24 sm:w-24">
             {image ? (
@@ -123,9 +158,13 @@ function CartRow({ item }: { item: CartItem }) {
               </div>
             )}
           </div>
+          {hasDiscount && (
+            <span className="absolute -top-2 -right-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-black text-primary-foreground shadow">
+              تخفیف
+            </span>
+          )}
         </Link>
 
-        {/* Product information */}
         <div className="min-w-0 flex-1">
           <Link
             to="/products/$slug"
@@ -137,7 +176,18 @@ function CartRow({ item }: { item: CartItem }) {
 
           <p className="mt-2 text-xs text-muted-foreground">
             قیمت واحد: {toman(item.product.final_price)} تومان
+            {hasDiscount && (
+              <span className="ms-2 line-through opacity-70">
+                {toman(item.product.price)}
+              </span>
+            )}
           </p>
+
+          {!item.product.in_stock && (
+            <p className="mt-1 text-xs font-bold text-destructive">
+              این محصول ناموجود شده
+            </p>
+          )}
 
           <button
             type="button"
@@ -148,12 +198,8 @@ function CartRow({ item }: { item: CartItem }) {
           </button>
         </div>
 
-        {/* Quantity */}
         <div className="flex items-center justify-between gap-4 sm:block sm:text-center">
-          <p className="mb-2 text-xs text-muted-foreground">
-            تعداد
-          </p>
-
+          <p className="mb-2 text-xs text-muted-foreground">تعداد</p>
           <div className="inline-flex items-center rounded-xl border border-input bg-background/60 p-1">
             <button
               type="button"
@@ -164,11 +210,9 @@ function CartRow({ item }: { item: CartItem }) {
             >
               −
             </button>
-
             <span className="w-9 text-center text-sm font-bold">
               {item.quantity}
             </span>
-
             <button
               type="button"
               onClick={() => changeQuantity(item.quantity + 1)}
@@ -180,12 +224,8 @@ function CartRow({ item }: { item: CartItem }) {
           </div>
         </div>
 
-        {/* Line total */}
         <div className="min-w-32 text-left sm:text-right">
-          <p className="text-xs text-muted-foreground">
-            قیمت نهایی
-          </p>
-
+          <p className="text-xs text-muted-foreground">قیمت نهایی</p>
           <p className="mt-1 text-base font-black text-primary">
             {toman(item.line_total)}
             <span className="ms-1 text-xs font-medium text-muted-foreground">
@@ -216,15 +256,12 @@ function CartBody() {
         <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-destructive/10 text-2xl">
           !
         </div>
-
         <h2 className="mt-4 text-lg font-black">
           دریافت سبد خرید انجام نشد
         </h2>
-
         <p className="mt-2 text-sm text-muted-foreground">
           اتصال به اطلاعات سبد خرید با مشکل مواجه شد. دوباره تلاش کن.
         </p>
-
         <button
           type="button"
           onClick={() => void cartQuery.refetch()}
@@ -242,16 +279,12 @@ function CartBody() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
-      {/* Items */}
       <section>
         <div className="mb-4 flex items-center justify-between">
-          <p className="text-sm font-bold">
-            محصولات انتخاب‌شده
-          </p>
-
-          <p className="text-xs text-muted-foreground">
-            {cart.items.length} محصول
-          </p>
+          <p className="text-sm font-bold">محصولات انتخاب‌شده</p>
+          <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+            {cart.items_count} قلم
+          </span>
         </div>
 
         <div className="space-y-3">
@@ -268,28 +301,17 @@ function CartBody() {
         </Link>
       </section>
 
-      {/* Summary */}
       <aside className="glass-panel rounded-3xl p-5 lg:sticky lg:top-24">
-        <h2 className="text-lg font-black">
-          خلاصه سفارش
-        </h2>
+        <h2 className="text-lg font-black">خلاصه سفارش</h2>
 
         <div className="mt-5 space-y-4 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">
-              جمع محصولات
-            </span>
-
-            <span className="font-bold">
-              {toman(cart.total)} تومان
-            </span>
+            <span className="text-muted-foreground">جمع محصولات</span>
+            <span className="font-bold">{toman(cart.total)} تومان</span>
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">
-              هزینه ارسال
-            </span>
-
+            <span className="text-muted-foreground">هزینه ارسال</span>
             <span className="font-bold text-emerald-400">
               محاسبه در مرحله بعد
             </span>
@@ -301,15 +323,11 @@ function CartBody() {
                 <p className="text-xs text-muted-foreground">
                   مبلغ قابل پرداخت
                 </p>
-
                 <p className="mt-1 text-xl font-black text-primary">
                   {toman(cart.total)}
                 </p>
               </div>
-
-              <span className="text-xs text-muted-foreground">
-                تومان
-              </span>
+              <span className="text-xs text-muted-foreground">تومان</span>
             </div>
           </div>
         </div>
@@ -331,6 +349,12 @@ function CartBody() {
             بررسی خواهی کرد.
           </p>
         </div>
+
+        <ul className="mt-4 space-y-2 text-[11px] text-muted-foreground">
+          <li>🛡️ امکان بازگشت تا ۷ روز</li>
+          <li>🚚 ارسال سریع پس از پرداخت</li>
+          <li>🔒 پرداخت امن (Mock برای دمو)</li>
+        </ul>
       </aside>
     </div>
   );
@@ -338,30 +362,37 @@ function CartBody() {
 
 function EmptyCart() {
   return (
-    <div className="glass-panel mx-auto max-w-xl rounded-3xl p-10 text-center">
-      <div className="mx-auto grid h-20 w-20 place-items-center rounded-3xl bg-primary/10 text-4xl">
+    <div className="glass-panel relative mx-auto max-w-xl overflow-hidden rounded-3xl p-10 text-center">
+      <div
+        className="pointer-events-none absolute -top-10 left-1/2 h-40 w-40 -translate-x-1/2 rounded-full opacity-20 blur-3xl"
+        style={{ backgroundImage: "var(--gradient-neon)" }}
+      />
+      <div className="relative mx-auto grid h-24 w-24 place-items-center rounded-3xl bg-primary/10 text-5xl">
         🛒
       </div>
-
-      <h2 className="mt-6 text-2xl font-black">
-        سبد خریدت خالیه
-      </h2>
-
-      <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">
+      <h2 className="relative mt-6 text-2xl font-black">سبد خریدت خالیه</h2>
+      <p className="relative mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">
         هنوز محصولی به سبد خرید اضافه نکردی. از بین تجهیزات گیمینگ
         فروشگاه، محصول موردنظرت را انتخاب کن.
       </p>
-
-      <Link
-        to="/products"
-        className="mt-6 inline-flex rounded-xl px-6 py-3 text-sm font-black text-primary-foreground"
-        style={{
-          backgroundImage: "var(--gradient-neon)",
-          boxShadow: "var(--shadow-neon)",
-        }}
-      >
-        مشاهده محصولات
-      </Link>
+      <div className="relative mt-6 flex flex-wrap justify-center gap-3">
+        <Link
+          to="/products"
+          className="inline-flex rounded-xl px-6 py-3 text-sm font-black text-primary-foreground transition-transform hover:-translate-y-0.5"
+          style={{
+            backgroundImage: "var(--gradient-neon)",
+            boxShadow: "var(--shadow-neon)",
+          }}
+        >
+          مشاهده محصولات
+        </Link>
+        <Link
+          to="/"
+          className="inline-flex rounded-xl border border-input px-6 py-3 text-sm font-bold hover:bg-accent"
+        >
+          صفحه اصلی
+        </Link>
+      </div>
     </div>
   );
 }
@@ -377,7 +408,6 @@ function CartLoading() {
           />
         ))}
       </div>
-
       <div className="glass-panel h-72 animate-pulse rounded-3xl" />
     </div>
   );

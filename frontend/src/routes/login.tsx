@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { SiteHeader } from "@/components/site-header";
@@ -20,7 +20,7 @@ function LoginPage() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function onSubmit(event: FormEvent) {
+  async function onSubmit(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending(true);
     setError(null);
@@ -29,7 +29,11 @@ function LoginPage() {
       toast.success("خوش آمدی!");
       void navigate({ to: "/" });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "ورود انجام نشد. دوباره تلاش کن.");
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "ورود انجام نشد. دوباره تلاش کن.",
+      );
     } finally {
       setPending(false);
     }
@@ -39,17 +43,27 @@ function LoginPage() {
     <div dir="rtl" className="min-h-screen bg-background text-foreground">
       <SiteHeader />
       <main className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-16">
-        <h1 className="text-2xl font-black">ورود به حساب کاربری</h1>
+        <div className="mb-2 grid h-14 w-14 place-items-center rounded-2xl bg-primary/10 text-2xl">
+          🎮
+        </div>
+        <h1 className="text-3xl font-black">ورود به حساب</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          هنوز حساب نساختی؟ <Link to="/register" className="text-primary">ثبت‌نام کن</Link>
+          هنوز حساب نساختی؟{" "}
+          <Link to="/register" className="font-bold text-primary hover:underline">
+            ثبت‌نام کن
+          </Link>
         </p>
 
-        <form onSubmit={onSubmit} className="glass-panel mt-8 space-y-4 rounded-2xl p-6">
+        <form
+          onSubmit={onSubmit}
+          className="glass-panel mt-8 space-y-4 rounded-3xl p-6"
+        >
           <div>
             <label className="text-sm font-bold">ایمیل</label>
             <input
               type="email"
               required
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="mt-1 w-full rounded-xl border border-input bg-background/60 px-4 py-2.5 text-sm outline-none focus:border-primary"
@@ -60,17 +74,27 @@ function LoginPage() {
             <input
               type="password"
               required
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="mt-1 w-full rounded-xl border border-input bg-background/60 px-4 py-2.5 text-sm outline-none focus:border-primary"
             />
           </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+
+          {error && (
+            <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </p>
+          )}
+
           <button
             type="submit"
             disabled={pending}
-            className="w-full rounded-xl px-6 py-3 text-sm font-bold text-primary-foreground disabled:opacity-60"
-            style={{ backgroundImage: "var(--gradient-neon)" }}
+            className="w-full rounded-xl px-6 py-3 text-sm font-black text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:opacity-60"
+            style={{
+              backgroundImage: "var(--gradient-neon)",
+              boxShadow: "var(--shadow-neon)",
+            }}
           >
             {pending ? "در حال ورود..." : "ورود"}
           </button>

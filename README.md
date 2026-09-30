@@ -1,25 +1,26 @@
 # 🎮 Gaming Gear E-Commerce Platform
 
-A production-ready full-stack e-commerce web application designed for gaming peripherals, featuring atomic concurrency control, stock reservation, dynamic specifications, and rate-limiting security.
+فروشگاه کامل لوازم جانبی گیمینگ — بک‌اند Django + DRF و فرانت‌اند React 19.
 
-## ✨ Key Technical Highlights
+## ✨ ویژگی‌های فنی مهم
 
-- **Concurrency-Safe Checkout:** Uses database row-level locking (`select_for_update`) to prevent race conditions during high-demand inventory checkout.
-- **Coupon Lifecycle & Rate Limits:** Prevents duplicate coupon abuse with `CouponUsage` ledger and concurrency-safe quota validation.
-- **Brute-Force & Security Protection:** Protected via `django-axes` against credential stuffing, enforced CORS whitelisting, and strict security headers.
-- **Debounced Live Search & Query Invalidation:** Instant client-side state synchronization with TanStack Query.
-- **Automated Inventory Restocking:** Background command to release reserved stock from unfulfilled/expired pending orders.
-- **Mock Payment Gateway:** Full transaction life-cycle handling (`PENDING` ➔ `PAID` / `FAILED`).
+- **Checkout اتمی:** قفل ردیف با `select_for_update` برای جلوگیری از race condition روی موجودی
+- **کوپن امن:** مدل `CouponUsage` + محدودیت تعداد استفاده کل و به ازای هر کاربر
+- **ضد بروت‌فورس:** `django-axes` (قفل حساب بعد از ۵ تلاش ناموفق)
+- **پرداخت Mock:** چرخه کامل `PENDING → PAID / FAILED`
+- **بازگردانی موجودی:** دستور `cancel_expired_orders` برای سفارش‌های پرداخت‌نشده منقضی‌شده
+- **پنل فروشنده:** ثبت محصول با تأیید ادمین + آپلود تصویر (WebP)
+- **امنیت:** JWT با rotation و blacklist، CORS محدود، HSTS در production
 
 ## 🛠 Tech Stack
 
-- **Backend:** Python 3.12, Django 5, Django REST Framework, SimpleJWT, PostgreSQL / SQLite.
-- **Frontend:** React 19, TypeScript, TanStack Start, Tailwind CSS.
-- **Containerization:** Docker & Docker Compose.
+| لایه | تکنولوژی |
+|------|----------|
+| Backend | Python 3.12, Django 5, DRF, SimpleJWT, django-axes, PostgreSQL / SQLite |
+| Frontend | React 19, TypeScript, TanStack Start/Router, TanStack Query, Tailwind CSS 4 |
+| DevOps | Docker, Docker Compose, GitHub Actions |
 
-## 🚀 Quick Start with Docker
+## 🚀 اجرا با Docker (پیشنهادی)
 
 ```bash
 docker-compose up --build
-
-The API will be available at http://localhost:8000/api/ and the interactive OpenAPI documentation at http://localhost:8000/api/docs/

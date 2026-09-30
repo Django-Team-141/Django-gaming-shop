@@ -31,9 +31,27 @@ export const Route = createFileRoute("/products/")({
   component: ProductsPage,
 });
 
+function discountPercent(product: ApiProduct) {
+  if (
+    product.discount_price === null ||
+    product.discount_price >= product.price ||
+    product.price <= 0
+  ) {
+    return null;
+  }
+  return Math.round(
+    ((product.price - product.discount_price) / product.price) * 100,
+  );
+}
+
 function ProductCard({ product }: { product: ApiProduct }) {
   const queryClient = useQueryClient();
   const [adding, setAdding] = useState(false);
+
+  const percent = discountPercent(product);
+  const imageUrl = mediaUrl(product.main_image);
+  const lowStock =
+    product.in_stock && product.stock > 0 && product.stock <= 3;
 
   async function handleAdd() {
     if (!isLoggedIn()) {
@@ -42,7 +60,6 @@ function ProductCard({ product }: { product: ApiProduct }) {
     }
 
     setAdding(true);
-
     try {
       await addToCart(product.id, 1);
       await queryClient.invalidateQueries({ queryKey: ["cart"] });
@@ -59,14 +76,8 @@ function ProductCard({ product }: { product: ApiProduct }) {
     }
   }
 
-  const discounted =
-    product.discount_price !== null &&
-    product.discount_price < product.price;
-
-  const imageUrl = mediaUrl(product.main_image);
-
   return (
-    <article className="glass-panel group flex flex-col overflow-hidden rounded-3xl transition-transform hover:-translate-y-1">
+    <article className="glass-panel group flex flex-col overflow-hidden rounded-3xl transition-all duration-300 hover:-translate-y-1 hover:border-primary/30">
       <Link
         to="/products/$slug"
         params={{ slug: product.slug }}
@@ -85,11 +96,24 @@ function ProductCard({ product }: { product: ApiProduct }) {
           </div>
         )}
 
-        {discounted && (
-          <span className="absolute right-3 top-3 rounded-full bg-primary px-3 py-1 text-[11px] font-bold text-primary-foreground">
-            تخفیف
-          </span>
-        )}
+        {/* بج‌ها */}
+        <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5">
+          {percent !== null && (
+            <span className="rounded-full bg-primary px-2.5 py-1 text-[11px] font-black text-primary-foreground shadow">
+              ٪{percent} تخفیف
+            </span>
+          )}
+          {!product.in_stock && (
+            <span className="rounded-full bg-destructive px-2.5 py-1 text-[11px] font-bold text-white shadow">
+              ناموجود
+            </span>
+          )}
+          {lowStock && (
+            <span className="rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-bold text-black shadow">
+              موجودی کم
+            </span>
+          )}
+        </div>
       </Link>
 
       <div className="flex flex-1 flex-col p-4">
@@ -100,24 +124,27 @@ function ProductCard({ product }: { product: ApiProduct }) {
         <Link
           to="/products/$slug"
           params={{ slug: product.slug }}
-          className="mt-1 text-sm font-bold leading-6"
+          className="mt-1 line-clamp-2 text-sm font-bold leading-6 transition-colors hover:text-primary"
         >
           {product.name}
         </Link>
 
-        <div className="mt-2 text-[11px] text-muted-foreground">
-          {product.rating ? `★ ${product.rating}` : "بدون امتیاز"} (
-          {toman(product.reviews_count)} نظر)
+        <div className="mt-2 flex items-center gap-2 text-xs text-chart-3">
+          {"★".repeat(Math.round(product.rating ?? 0))}
+          <span className="text-muted-foreground">
+            {"★".repeat(5 - Math.round(product.rating ?? 0))}
+          </span>
+          <span className="text-[11px] text-muted-foreground">
+            ({product.reviews_count} نظر)
+          </span>
         </div>
 
         <div className="mt-4 flex items-end gap-2">
           <span className="text-base font-extrabold text-primary">
             {toman(product.final_price)}
           </span>
-
           <span className="text-xs text-muted-foreground">تومان</span>
-
-          {discounted && (
+          {percent !== null && (
             <span className="ms-auto text-xs text-muted-foreground line-through">
               {toman(product.price)}
             </span>
@@ -127,7 +154,7 @@ function ProductCard({ product }: { product: ApiProduct }) {
         <button
           onClick={handleAdd}
           disabled={!product.in_stock || adding}
-          className="mt-4 rounded-xl border border-input py-2.5 text-sm font-bold transition-colors hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-4 rounded-xl border border-input py-2.5 text-sm font-bold transition-all hover:border-primary hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
         >
           {product.in_stock
             ? adding
@@ -145,7 +172,6 @@ function ProductsPage() {
   const navigate = Route.useNavigate();
   const [term, setTerm] = useState(search.search ?? "");
 
-  // جستجوی زنده خودکار ۳۵۰ میلی‌ثانیه پس از اتمام تایپ کاربر
   useEffect(() => {
     const timer = setTimeout(() => {
       if (term !== (search.search ?? "")) {
@@ -183,20 +209,29 @@ function ProductsPage() {
   });
 
   const products = productsQuery.data?.results ?? [];
+  const categories = categoriesQuery.data ?? [];
+  const brands = brandsQuery.data ?? [];
 
   return (
     <div dir="rtl" className="min-h-screen bg-background text-foreground">
       <SiteHeader />
 
       <main className="mx-auto max-w-6xl px-4 py-10">
-        <h1 className="text-2xl font-black">محصولات</h1>
+        <div className="mb-8">
+          <p className="text-sm font-medium text-primary">کاتالوگ</p>
+          <h1 className="mt-2 text-3xl font-black md:text-4xl">محصولات</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            فیلتر کن، جستجو کن، و سریع به سبد اضافه کن.
+          </p>
+        </div>
 
-        <div className="mt-6 flex flex-wrap gap-3">
-          <div className="flex min-w-55 flex-1 items-center rounded-full border border-input bg-muted/40 px-3 py-2">
+        {/* فیلترها */}
+        <div className="glass-panel mb-8 flex flex-wrap gap-3 rounded-3xl p-4">
+          <div className="flex min-w-[200px] flex-1 items-center rounded-full border border-input bg-muted/40 px-3 py-2">
             <input
               value={term}
               onChange={(e) => setTerm(e.target.value)}
-              placeholder="جست‌وجوی لحظه‌ای در محصولات..."
+              placeholder="جست‌وجوی لحظه‌ای..."
               className="w-full bg-transparent text-sm outline-none"
             />
           </div>
@@ -211,13 +246,12 @@ function ProductsPage() {
                 },
               })
             }
-            className="rounded-full border border-input bg-background px-4 py-2 text-sm"
+            className="rounded-full border border-input bg-background px-3 py-2 text-sm"
           >
             <option value="">همه دسته‌ها</option>
-
-            {categoriesQuery.data?.map((category) => (
-              <option key={category.id} value={category.slug}>
-                {category.name}
+            {categories.map((c) => (
+              <option key={c.id} value={c.slug}>
+                {c.name}
               </option>
             ))}
           </select>
@@ -232,13 +266,12 @@ function ProductsPage() {
                 },
               })
             }
-            className="rounded-full border border-input bg-background px-4 py-2 text-sm"
+            className="rounded-full border border-input bg-background px-3 py-2 text-sm"
           >
             <option value="">همه برندها</option>
-
-            {brandsQuery.data?.map((brand) => (
-              <option key={brand.id} value={brand.slug}>
-                {brand.name}
+            {brands.map((b) => (
+              <option key={b.id} value={b.slug}>
+                {b.name}
               </option>
             ))}
           </select>
@@ -253,28 +286,34 @@ function ProductsPage() {
                 },
               })
             }
-            className="rounded-full border border-input bg-background px-4 py-2 text-sm"
+            className="rounded-full border border-input bg-background px-3 py-2 text-sm"
           >
             <option value="">جدیدترین</option>
             <option value="price">ارزان‌ترین</option>
             <option value="-price">گران‌ترین</option>
+            <option value="-created_at">تازه‌ترین</option>
           </select>
         </div>
 
         {productsQuery.isLoading ? (
-          <p className="mt-12 text-center text-muted-foreground">
-            در حال بارگذاری...
-          </p>
-        ) : productsQuery.isError ? (
-          <p className="mt-12 text-center text-destructive">
-            دریافت محصولات با خطا مواجه شد.
-          </p>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div
+                key={i}
+                className="glass-panel h-80 animate-pulse rounded-3xl"
+              />
+            ))}
+          </div>
         ) : products.length === 0 ? (
-          <p className="mt-12 text-center text-muted-foreground">
-            محصولی با این مشخصات پیدا نشد.
-          </p>
+          <div className="glass-panel rounded-3xl p-12 text-center">
+            <p className="text-4xl">🔍</p>
+            <p className="mt-4 text-lg font-black">محصولی پیدا نشد</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              فیلترها را عوض کن یا جستجو را پاک کن.
+            </p>
+          </div>
         ) : (
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {products.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}

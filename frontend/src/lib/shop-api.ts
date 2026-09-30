@@ -128,6 +128,16 @@ export type OrderItem = {
   line_total: number;
 };
 
+export type Payment = {
+  id: number;
+  amount: number;
+  status: string;
+  status_label: string;
+  reference_id: string | null;
+  gateway: string;
+  created_at: string;
+};
+
 export type Order = {
   id: number;
   status: string;
@@ -138,7 +148,25 @@ export type Order = {
   shipping_cost: number;
   grand_total: number;
   items: OrderItem[];
+  payments?: Payment[];
   created_at: string;
+};
+
+export type CouponValidation = {
+  code: string;
+  percent: number;
+  max_amount: number | null;
+  discount_amount: number;
+  cart_total: number;
+  payable_amount: number;
+};
+
+export type PaymentResult = {
+  detail: string;
+  status?: string;
+  reference_id?: string;
+  payment_id?: number;
+  order?: Order;
 };
 
 export type Review = {
@@ -235,7 +263,21 @@ type RequestOptions = {
   signal?: AbortSignal | undefined;
 };
 
-async function refreshAccessToken(): Promise<string> {
+// چند درخواست همزمان باید فقط یک refresh بزنند؛ بک‌اند refresh token را
+// بعد از هر استفاده باطل می‌کند و بار دوم ۴۰۱ می‌گیرد.
+let refreshInFlight: Promise<string> | null = null;
+
+function refreshAccessToken(): Promise<string> {
+  if (!refreshInFlight) {
+    refreshInFlight = doRefreshAccessToken().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+
+  return refreshInFlight;
+}
+
+async function doRefreshAccessToken(): Promise<string> {
   const refresh = getRefreshToken();
 
   if (!refresh) {
@@ -275,12 +317,7 @@ async function request<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const {
-    method = "GET",
-    body,
-    auth = false,
-    signal,
-  } = options;
+  const { method = "GET", body, auth = false, signal } = options;
 
   const isForm =
     typeof FormData !== "undefined" && body instanceof FormData;
@@ -439,10 +476,28 @@ export async function changePassword(payload: {
 export async function fetchAddresses(
   signal?: AbortSignal,
 ): Promise<Address[]> {
-  return request<Address[]>("/auth/addresses/", {
-    auth: true,
-    signal,
-  });
+  const data = await request<Address[] | Paginated<Address>>(
+    "/auth/addresses/",
+    {
+      auth: true,
+      signal,
+    },
+  );
+
+  if (
+    data &&
+    typeof data === "object" &&
+    "results" in data &&
+    Array.isArray(data.results)
+  ) {
+    return data.results;
+  }
+
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  return [];
 }
 
 export async function createAddress(
@@ -495,10 +550,9 @@ export async function fetchProducts(
   filters: ProductFilters = {},
   signal?: AbortSignal,
 ): Promise<Paginated<ApiProduct>> {
-  return request<Paginated<ApiProduct>>(
-    `/products/${toQuery(filters)}`,
-    { signal },
-  );
+  return request<Paginated<ApiProduct>>(`/products/${toQuery(filters)}`, {
+    signal,
+  });
 }
 
 export async function fetchProduct(
@@ -545,9 +599,7 @@ export async function createReview(payload: {
 
 // --- سبد خرید ------------------------------------------------------------
 
-export async function fetchCart(
-  signal?: AbortSignal,
-): Promise<Cart> {
+export async function fetchCart(signal?: AbortSignal): Promise<Cart> {
   return request<Cart>("/cart/", { auth: true, signal });
 }
 
@@ -590,6 +642,32 @@ export async function checkout(payload: {
     method: "POST",
     auth: true,
     body: payload,
+  });
+}
+
+/** مسیر واقعی بک‌اند: POST /api/coupons/validate/ */
+export async function validateCoupon(
+  code: string,
+): Promise<CouponValidation> {
+  return request<CouponValidation>("/coupons/validate/", {
+    method: "POST",
+    auth: true,
+    body: { code },
+  });
+}
+
+/** مسیر واقعی بک‌اند: POST /api/payments/process/ */
+export async function processPayment(payload: {
+  order_id: number;
+  simulate_success?: boolean;
+}): Promise<PaymentResult> {
+  return request<PaymentResult>("/payments/process/", {
+    method: "POST",
+    auth: true,
+    body: {
+      order_id: payload.order_id,
+      simulate_success: payload.simulate_success ?? true,
+    },
   });
 }
 
@@ -678,14 +756,11 @@ export async function uploadProductImage(
     form.set("is_main", "true");
   }
 
-  return request<ApiProductImage>(
-    `/panel/products/${productId}/images/`,
-    {
-      method: "POST",
-      auth: true,
-      body: form,
-    },
-  );
+  return request<ApiProductImage>(`/panel/products/${productId}/images/`, {
+    method: "POST",
+    auth: true,
+    body: form,
+  });
 }
 
 export async function setMainImage(
@@ -706,13 +781,10 @@ export async function deleteProductImage(
   productId: number,
   imageId: number,
 ): Promise<void> {
-  await request(
-    `/panel/products/${productId}/images/${imageId}/`,
-    {
-      method: "DELETE",
-      auth: true,
-    },
-  );
+  await request(`/panel/products/${productId}/images/${imageId}/`, {
+    method: "DELETE",
+    auth: true,
+  });
 }
 
 /** آدرس کامل تصویر؛ اگر بک‌اند مسیر نسبی برگرداند به آن دامنه اضافه می‌شود. */
